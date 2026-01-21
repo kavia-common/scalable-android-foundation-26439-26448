@@ -22,6 +22,9 @@
         <item name="android:textColorPrimary">#F9FAFB</item>
         <item name="android:textColorSecondary">#E5E7EB</item>
 
+        <!-- Default ripple/highlight across Material components -->
+        <item name="colorControlHighlight">@color/ocean_control_ripple</item>
+
         <item name="android:statusBarColor" tools:targetApi="l">@color/ocean_primary</item>
 
         <!-- Keep component wiring consistent -->

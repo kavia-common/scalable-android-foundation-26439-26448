@@ -24,7 +24,10 @@
 
         <!-- Typography defaults -->
         <item name="android:textColorPrimary">@color/ocean_text</item>
-        <item name="android:textColorSecondary">@color/ocean_text</item>
+        <item name="android:textColorSecondary">@color/ocean_disabled</item>
+
+        <!-- Default ripple/highlight across Material components -->
+        <item name="colorControlHighlight">@color/ocean_control_ripple</item>
 
         <!-- Subtle system bars (keep readable) -->
         <item name="android:statusBarColor" tools:targetApi="l">@color/ocean_primary</item>

@@ -20,10 +20,6 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            android:elevation="2dp"
-            android:theme="@style/ThemeOverlay.Ocean.Toolbar"
-            app:titleTextColor="@color/ocean_on_primary"
             tools:title="@string/app_name" />
 
         <!-- Manual fragment host (no Jetpack NavHostFragment / navGraph) -->
