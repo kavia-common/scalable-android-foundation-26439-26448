@@ -4,6 +4,8 @@
     <string name="nav_home">Home</string>
     <string name="nav_search">Search</string>
     <string name="nav_profile">Profile</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_settings">Settings</string>
 
     <string name="drawer_open">Open navigation drawer</string>
     <string name="drawer_close">Close navigation drawer</string>
@@ -11,4 +13,9 @@
     <string name="placeholder_home">This is the Home section.</string>
     <string name="placeholder_search">This is the Search section.</string>
     <string name="placeholder_profile">This is the Profile section.</string>
+    <string name="placeholder_dashboard">This is the Dashboard section.</string>
+    <string name="placeholder_settings">This is the Settings section.</string>
+
+    <string name="label_counter">Counter:</string>
+    <string name="action_increment">Increment</string>
 </resources>

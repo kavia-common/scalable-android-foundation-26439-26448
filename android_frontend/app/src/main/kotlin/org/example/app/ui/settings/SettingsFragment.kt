@@ -1,4 +1,4 @@
-package org.example.app.ui.home
+package org.example.app.ui.settings
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,14 +12,14 @@ import org.example.app.R
 import org.example.app.data.InMemoryAppRepository
 import org.example.app.ui.common.RepositoryViewModelFactory
 
-class HomeFragment : Fragment() {
+class SettingsFragment : Fragment() {
 
-    private val viewModel: HomeViewModel by viewModels {
+    private val viewModel: SettingsViewModel by viewModels {
         RepositoryViewModelFactory(
             repository = InMemoryAppRepository(),
-            screenKey = "home"
+            screenKey = "settings"
         ) { repo, key ->
-            HomeViewModel(repo, key)
+            SettingsViewModel(repo, key)
         }
     }
 
@@ -27,7 +27,7 @@ class HomeFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.fragment_home, container, false)
+    ): View = inflater.inflate(R.layout.fragment_settings, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val title = view.findViewById<TextView>(R.id.title)
