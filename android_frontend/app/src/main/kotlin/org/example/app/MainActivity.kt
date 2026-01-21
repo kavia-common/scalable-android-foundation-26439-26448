@@ -22,7 +22,19 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var fragmentManager: FragmentManager
 
+    /**
+     * The "logical" currently selected destination. We treat Home/Dashboard/Settings as the only
+     * destinations, but map them onto the existing menu IDs:
+     * - nav_home -> Home
+     * - nav_search -> Dashboard
+     * - nav_profile -> Settings
+     */
     private var selectedItemId: Int = R.id.nav_home
+
+    /**
+     * Guards against recursive selection changes when we programmatically sync drawer/bottom-nav.
+     */
+    private var isSyncingSelection: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,7 +51,7 @@ class MainActivity : AppCompatActivity() {
 
         fragmentManager = supportFragmentManager
 
-        // Restore selected tab across configuration changes
+        // Restore selected tab across configuration changes (fragment instances are restored by FM).
         selectedItemId = savedInstanceState?.getInt(KEY_SELECTED_ITEM_ID) ?: R.id.nav_home
 
         // Classic drawer toggle animation for hamburger icon
@@ -53,27 +65,32 @@ class MainActivity : AppCompatActivity() {
         drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
 
-        // Manual fragment setup: ensure all fragments exist, then show selected.
+        // Manual fragment setup: ensure all fragments exist (by stable tags), then show selection.
         ensureFragmentsCreated()
         showDestination(selectedItemId, updateUiSelection = true)
 
         // BottomNavigationView: no-op on reselection; no back stack usage for tab switches.
         bottomNav.setOnItemReselectedListener {
-            // Do nothing: required behavior.
+            // Do nothing by design.
         }
         bottomNav.setOnItemSelectedListener { item ->
-            if (item.itemId == selectedItemId) return@setOnItemSelectedListener true
-            showDestination(item.itemId, updateUiSelection = true)
+            if (isSyncingSelection) return@setOnItemSelectedListener true
+
+            val normalized = normalizeDestinationId(item.itemId)
+            if (normalized == selectedItemId) return@setOnItemSelectedListener true
+
+            showDestination(normalized, updateUiSelection = true)
             true
         }
 
         // Drawer NavigationView: same show/hide behavior, then close drawer.
         navigationView.setNavigationItemSelectedListener { item ->
-            if (item.itemId != selectedItemId) {
-                showDestination(item.itemId, updateUiSelection = true)
+            val normalized = normalizeDestinationId(item.itemId)
+            if (normalized != selectedItemId) {
+                showDestination(normalized, updateUiSelection = true)
             } else {
                 // Keep selection in sync even if the same item is tapped.
-                syncNavigationSelection(item.itemId)
+                syncNavigationSelection(normalized)
             }
             drawerLayout.closeDrawer(GravityCompat.START)
             true
@@ -81,8 +98,8 @@ class MainActivity : AppCompatActivity() {
 
         // Back press behavior:
         // - If drawer open => close drawer.
-        // - If on non-default tab => return to default (Home).
-        // - If on default tab => allow system behavior (exit).
+        // - If on non-home tab => return to home (no back stack entries for tabs).
+        // - If already on home => exit (finish activity).
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -120,7 +137,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun ensureFragmentsCreated() {
-        // Create each tab fragment once (by tag) and add to container, hidden except default.
+        // Create each tab fragment once (by tag) and add to container.
+        // FragmentManager will restore existing instances after configuration changes; tags ensure we
+        // can always find the same fragment instance and preserve its view/model state.
         val home = fragmentManager.findFragmentByTag(TAG_HOME) ?: HomeFragment()
         val dashboard = fragmentManager.findFragmentByTag(TAG_DASHBOARD) ?: DashboardFragment()
         val settings = fragmentManager.findFragmentByTag(TAG_SETTINGS) ?: SettingsFragment()
@@ -131,31 +150,32 @@ class MainActivity : AppCompatActivity() {
             if (!dashboard.isAdded) add(R.id.nav_host_fragment, dashboard, TAG_DASHBOARD)
             if (!settings.isAdded) add(R.id.nav_host_fragment, settings, TAG_SETTINGS)
 
-            // Initially hide all; we'll show the selected in showDestination().
+            // Hide all; we'll show the selected in showDestination().
             hide(home)
             hide(dashboard)
             hide(settings)
 
+            // Use commitNow so the initial state is applied before we sync UI selections/titles.
+            // Not using back stack keeps tab switching "flat" and makes back behavior deterministic.
             commitNowAllowingStateLoss()
         }
     }
 
     private fun showDestination(itemId: Int, updateUiSelection: Boolean) {
+        val normalized = normalizeDestinationId(itemId)
+
         val home = fragmentManager.findFragmentByTag(TAG_HOME)
         val dashboard = fragmentManager.findFragmentByTag(TAG_DASHBOARD)
         val settings = fragmentManager.findFragmentByTag(TAG_SETTINGS)
 
-        val targetTag = when (itemId) {
+        val targetTag = when (normalized) {
             R.id.nav_home -> TAG_HOME
-            // Menu IDs must match existing menus; here we map Search/Profile IDs to Dashboard/Settings
-            // to satisfy the user instruction to navigate between Home, Dashboard, and Settings.
             R.id.nav_search -> TAG_DASHBOARD
             R.id.nav_profile -> TAG_SETTINGS
             else -> TAG_HOME
         }
 
-        val target = fragmentManager.findFragmentByTag(targetTag)
-        if (target == null) return
+        val target = fragmentManager.findFragmentByTag(targetTag) ?: return
 
         fragmentManager.beginTransaction().apply {
             // Hide others, show target (no back stack).
@@ -165,10 +185,10 @@ class MainActivity : AppCompatActivity() {
             commit()
         }
 
-        selectedItemId = itemId
+        selectedItemId = normalized
 
         if (updateUiSelection) {
-            syncNavigationSelection(itemId)
+            syncNavigationSelection(normalized)
         }
 
         // Update toolbar title based on shown fragment.
@@ -181,16 +201,37 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setTitle(titleRes)
     }
 
-    private fun syncNavigationSelection(itemId: Int) {
-        // Keep BottomNav and Drawer selection in sync, but avoid infinite loops.
-        if (bottomNav.selectedItemId != itemId) {
-            bottomNav.menu.findItem(itemId)?.isChecked = true
-            bottomNav.selectedItemId = itemId
-        } else {
-            bottomNav.menu.findItem(itemId)?.isChecked = true
+    /**
+     * Maps any incoming menu item ID to a valid destination ID.
+     * This makes the rest of the navigation code robust if menus ever diverge.
+     */
+    private fun normalizeDestinationId(itemId: Int): Int {
+        return when (itemId) {
+            R.id.nav_home -> R.id.nav_home
+            R.id.nav_search -> R.id.nav_search
+            R.id.nav_profile -> R.id.nav_profile
+            else -> R.id.nav_home
         }
+    }
 
-        navigationView.menu.findItem(itemId)?.isChecked = true
+    private fun syncNavigationSelection(itemId: Int) {
+        val normalized = normalizeDestinationId(itemId)
+
+        // Keep BottomNav and Drawer selection in sync.
+        // Use a guard to avoid triggering BottomNav listeners recursively.
+        isSyncingSelection = true
+        try {
+            // Bottom navigation: set checked state + selectedItemId to update UI.
+            if (bottomNav.selectedItemId != normalized) {
+                bottomNav.selectedItemId = normalized
+            }
+            bottomNav.menu.findItem(normalized)?.isChecked = true
+
+            // Drawer: mark checked item (single-check group in menu_drawer.xml).
+            navigationView.menu.findItem(normalized)?.isChecked = true
+        } finally {
+            isSyncingSelection = false
+        }
     }
 
     private companion object {
