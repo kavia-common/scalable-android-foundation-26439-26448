@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!--
-      Ocean Professional (approx):
-      primary #2563EB, secondary #F59E0B, background #f9fafb, surface #ffffff, text #111827
+    <!-- Ocean Professional:
+      primary #2563EB, secondary/success #F59E0B, error #EF4444,
+      background #F9FAFB, surface #FFFFFF, text #111827
     -->
     <style name="Theme.OceanProfessional" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Core colors -->
         <item name="colorPrimary">@color/ocean_primary</item>
         <item name="colorPrimaryVariant">@color/ocean_primary_variant</item>
         <item name="colorOnPrimary">@color/ocean_on_primary</item>
@@ -14,12 +15,103 @@
         <item name="colorSecondaryVariant">@color/ocean_secondary_variant</item>
         <item name="colorOnSecondary">@color/ocean_on_secondary</item>
 
+        <item name="colorError">@color/ocean_error</item>
+        <item name="colorOnError">@color/ocean_on_error</item>
+
         <item name="android:colorBackground">@color/ocean_background</item>
         <item name="colorSurface">@color/ocean_surface</item>
-        <item name="colorOnSurface">@color/ocean_on_surface</item>
+        <item name="colorOnSurface">@color/ocean_text</item>
 
-        <!-- Status bar: keep readable -->
+        <!-- Typography defaults -->
+        <item name="android:textColorPrimary">@color/ocean_text</item>
+        <item name="android:textColorSecondary">@color/ocean_text</item>
+
+        <!-- Subtle system bars (keep readable) -->
         <item name="android:statusBarColor" tools:targetApi="l">@color/ocean_primary</item>
+
+        <!-- Modern, smooth UI -->
+        <item name="android:windowAnimationStyle">@style/Ocean.WindowAnimation</item>
+
+        <!-- Shape theming: rounded corners -->
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Ocean.SmallComponent</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Ocean.MediumComponent</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Ocean.LargeComponent</item>
+
+        <!-- Components -->
+        <item name="materialButtonStyle">@style/Widget.Ocean.Button</item>
+        <item name="toolbarStyle">@style/Widget.Ocean.Toolbar</item>
+
+        <!-- Ensure BottomNavigationView and NavigationView pick up our tints and states -->
+        <item name="bottomNavigationStyle">@style/Widget.Ocean.BottomNavigationView</item>
+        <item name="navigationViewStyle">@style/Widget.Ocean.NavigationView</item>
+    </style>
+
+    <!-- Rounded corners -->
+    <style name="ShapeAppearance.Ocean.SmallComponent" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">10dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Ocean.MediumComponent" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">14dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Ocean.LargeComponent" parent="ShapeAppearance.MaterialComponents.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">18dp</item>
+    </style>
+
+    <!-- Subtle transitions -->
+    <style name="Ocean.WindowAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:activityOpenExitAnimation">@android:anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@android:anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@android:anim/fade_out</item>
+    </style>
+
+    <!-- Toolbar: primary background + white title/icons -->
+    <style name="Widget.Ocean.Toolbar" parent="Widget.MaterialComponents.Toolbar.Primary">
+        <item name="android:background">?attr/colorPrimary</item>
+        <item name="titleTextColor">@color/ocean_on_primary</item>
+        <item name="subtitleTextColor">@color/ocean_on_primary</item>
+        <!-- Provide consistent icon tint via theme overlay -->
+        <item name="android:theme">@style/ThemeOverlay.Ocean.Toolbar</item>
+        <item name="elevation">2dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Ocean.Toolbar" parent="ThemeOverlay.MaterialComponents.Dark.ActionBar">
+        <item name="colorOnPrimary">@color/ocean_on_primary</item>
+        <item name="android:textColorPrimary">@color/ocean_on_primary</item>
+    </style>
+
+    <!-- Primary buttons: use primary background and rounded corners -->
+    <style name="Widget.Ocean.Button" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/ocean_primary</item>
+        <item name="android:textColor">@color/ocean_on_primary</item>
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="elevation">1dp</item>
+    </style>
+
+    <!-- Bottom navigation: surface background + primary highlight on selection -->
+    <style name="Widget.Ocean.BottomNavigationView" parent="Widget.MaterialComponents.BottomNavigationView">
+        <item name="itemIconTint">@color/ocean_bottom_nav_item_tint</item>
+        <item name="itemTextColor">@color/ocean_bottom_nav_item_tint</item>
+        <item name="itemRippleColor">@color/ocean_control_ripple</item>
+        <item name="android:background">?attr/colorSurface</item>
+        <item name="elevation">6dp</item>
+    </style>
+
+    <!-- Drawer navigation view: consistent icon/text tints + selected background -->
+    <style name="Widget.Ocean.NavigationView" parent="Widget.MaterialComponents.NavigationView">
+        <item name="itemIconTint">@color/ocean_nav_item_tint</item>
+        <item name="itemTextColor">@color/ocean_nav_item_tint</item>
+        <item name="itemBackground">@drawable/ocean_nav_item_background</item>
     </style>
 
 </resources>

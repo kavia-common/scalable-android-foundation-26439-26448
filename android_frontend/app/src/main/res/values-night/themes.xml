@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Night overrides while keeping Ocean accents -->
+    <style name="Theme.OceanProfessional" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/ocean_primary</item>
+        <item name="colorPrimaryVariant">@color/ocean_primary_variant</item>
+        <item name="colorOnPrimary">@color/ocean_on_primary</item>
+
+        <item name="colorSecondary">@color/ocean_secondary</item>
+        <item name="colorSecondaryVariant">@color/ocean_secondary_variant</item>
+        <item name="colorOnSecondary">@color/ocean_on_secondary</item>
+
+        <item name="colorError">@color/ocean_error</item>
+        <item name="colorOnError">@color/ocean_on_error</item>
+
+        <!-- Dark surfaces/backgrounds for night -->
+        <item name="android:colorBackground">#0B1220</item>
+        <item name="colorSurface">#0F172A</item>
+        <item name="colorOnSurface">#F9FAFB</item>
+
+        <item name="android:textColorPrimary">#F9FAFB</item>
+        <item name="android:textColorSecondary">#E5E7EB</item>
+
+        <item name="android:statusBarColor" tools:targetApi="l">@color/ocean_primary</item>
+
+        <!-- Keep component wiring consistent -->
+        <item name="materialButtonStyle">@style/Widget.Ocean.Button</item>
+        <item name="toolbarStyle">@style/Widget.Ocean.Toolbar</item>
+        <item name="bottomNavigationStyle">@style/Widget.Ocean.BottomNavigationView</item>
+        <item name="navigationViewStyle">@style/Widget.Ocean.NavigationView</item>
+    </style>
+
+</resources>

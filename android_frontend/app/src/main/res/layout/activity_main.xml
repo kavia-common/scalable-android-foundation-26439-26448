@@ -7,6 +7,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
+    android:background="?android:attr/colorBackground"
     tools:context=".MainActivity">
 
     <!-- Main content -->
@@ -20,9 +21,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="?attr/colorPrimary"
-            android:elevation="4dp"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-            app:titleTextColor="@android:color/white"
+            android:elevation="2dp"
+            android:theme="@style/ThemeOverlay.Ocean.Toolbar"
+            app:titleTextColor="@color/ocean_on_primary"
             tools:title="@string/app_name" />
 
         <!-- Manual fragment host (no Jetpack NavHostFragment / navGraph) -->
@@ -35,12 +36,16 @@
 
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottom_nav"
+            style="@style/Widget.Ocean.BottomNavigationView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:layout_marginTop="0dp"
             android:layout_marginBottom="0dp"
             android:background="?attr/colorSurface"
+            app:itemIconTint="@color/ocean_bottom_nav_item_tint"
+            app:itemTextColor="@color/ocean_bottom_nav_item_tint"
+            app:itemRippleColor="@color/ocean_control_ripple"
             app:menu="@menu/menu_bottom_nav"
             app:labelVisibilityMode="labeled" />
 
@@ -49,10 +54,15 @@
     <!-- Drawer content -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
+        style="@style/Widget.Ocean.NavigationView"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:fitsSystemWindows="true"
+        android:background="?attr/colorSurface"
+        app:itemIconTint="@color/ocean_nav_item_tint"
+        app:itemTextColor="@color/ocean_nav_item_tint"
+        app:itemBackground="@drawable/ocean_nav_item_background"
         app:menu="@menu/menu_drawer" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
