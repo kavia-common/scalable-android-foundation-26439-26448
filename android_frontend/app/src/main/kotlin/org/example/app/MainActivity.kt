@@ -6,6 +6,7 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
@@ -32,8 +33,16 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Guards against recursive selection changes when we programmatically sync drawer/bottom-nav.
+     * This is important because setting BottomNavigationView.selectedItemId will trigger its
+     * OnItemSelectedListener.
      */
     private var isSyncingSelection: Boolean = false
+
+    private enum class SelectionSource {
+        USER_BOTTOM_NAV,
+        USER_DRAWER,
+        PROGRAMMATIC
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,7 +59,8 @@ class MainActivity : AppCompatActivity() {
 
         fragmentManager = supportFragmentManager
 
-        // Restore selected tab across configuration changes (fragment instances are restored by FM).
+        // Restore selected tab across configuration changes.
+        // NOTE: Fragment instances are restored by FragmentManager automatically.
         selectedItemId = normalizeDestinationId(
             savedInstanceState?.getInt(KEY_SELECTED_ITEM_ID) ?: R.id.nav_home
         )
@@ -66,12 +76,13 @@ class MainActivity : AppCompatActivity() {
         drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
 
-        // Manual fragment setup: ensure all fragments exist (by stable tags), then show selection.
-        // IMPORTANT: set up listeners BEFORE calling showDestination(), because showDestination()
-        // synchronizes UI state (which touches bottomNav.selectedItemId).
+        // IMPORTANT ordering:
+        // 1) Ensure fragments exist (safe on restore; won't add duplicates)
+        // 2) Setup listeners (so user interactions go through a single entrypoint)
+        // 3) Apply restored selection deterministically (show/hide + title + checked states)
         ensureFragmentsCreated()
         setupNavigationListeners()
-        showDestination(selectedItemId, updateUiSelection = true)
+        selectDestination(selectedItemId, source = SelectionSource.PROGRAMMATIC)
 
         // Back press behavior:
         // - If drawer open => close drawer.
@@ -87,7 +98,7 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     if (selectedItemId != R.id.nav_home) {
-                        showDestination(R.id.nav_home, updateUiSelection = true)
+                        selectDestination(R.id.nav_home, source = SelectionSource.PROGRAMMATIC)
                         return
                     }
 
@@ -121,21 +132,33 @@ class MainActivity : AppCompatActivity() {
             if (isSyncingSelection) return@setOnItemSelectedListener true
 
             val normalized = normalizeDestinationId(item.itemId)
-            if (normalized == selectedItemId) return@setOnItemSelectedListener true
+            if (normalized == selectedItemId) {
+                // Ensure checked state consistency even on re-tap (rare edge cases).
+                syncNavigationSelection(normalized)
+                return@setOnItemSelectedListener true
+            }
 
-            showDestination(normalized, updateUiSelection = true)
+            selectDestination(normalized, source = SelectionSource.USER_BOTTOM_NAV)
             true
         }
 
         // Drawer NavigationView: same show/hide behavior, then close drawer.
         navigationView.setNavigationItemSelectedListener { item ->
+            if (isSyncingSelection) {
+                // Still close drawer to honor tap; return true to consume.
+                drawerLayout.closeDrawer(GravityCompat.START)
+                return@setNavigationItemSelectedListener true
+            }
+
             val normalized = normalizeDestinationId(item.itemId)
-            if (normalized != selectedItemId) {
-                showDestination(normalized, updateUiSelection = true)
-            } else {
+            if (normalized == selectedItemId) {
                 // Keep selection in sync even if the same item is tapped.
                 syncNavigationSelection(normalized)
+            } else {
+                selectDestination(normalized, source = SelectionSource.USER_DRAWER)
             }
+
+            // Always close drawer after a selection.
             drawerLayout.closeDrawer(GravityCompat.START)
             true
         }
@@ -149,30 +172,35 @@ class MainActivity : AppCompatActivity() {
         val dashboard = fragmentManager.findFragmentByTag(TAG_DASHBOARD) ?: DashboardFragment()
         val settings = fragmentManager.findFragmentByTag(TAG_SETTINGS) ?: SettingsFragment()
 
+        // Only add fragments that are not already added.
+        // IMPORTANT: do not blindly hide/show here based on current selection; on restore, FM may
+        // already have correct visibility. We'll enforce a single visible fragment in
+        // selectDestination(PROGRAMMATIC) below.
         fragmentManager.beginTransaction().apply {
-            // Add if needed; we add all upfront to preserve state and make show/hide predictable.
             if (!home.isAdded) add(R.id.nav_host_fragment, home, TAG_HOME)
             if (!dashboard.isAdded) add(R.id.nav_host_fragment, dashboard, TAG_DASHBOARD)
             if (!settings.isAdded) add(R.id.nav_host_fragment, settings, TAG_SETTINGS)
 
-            // Hide all; we'll show the selected in showDestination().
-            hide(home)
-            hide(dashboard)
-            hide(settings)
-
-            // Use commitNow so the initial state is applied before we sync UI selections/titles.
-            // Not using back stack keeps tab switching "flat" and makes back behavior deterministic.
+            // If this is a first creation (not restore), start with all hidden to avoid flicker.
+            // On restore, these fragments are already added and their hidden state will be restored;
+            // calling hide() again is safe but can cause extra transactions. We avoid it.
             commitNow()
         }
     }
 
-    private fun showDestination(itemId: Int, updateUiSelection: Boolean) {
+    /**
+     * Single entrypoint for all destination changes.
+     *
+     * Responsibilities:
+     * - show/hide fragments using stable tags (no Jetpack Navigation, no back stack)
+     * - keep BottomNavigationView and NavigationView checked states in sync (both directions)
+     * - update AppBar title correctly
+     * - close drawer after user drawer selections
+     */
+    private fun selectDestination(itemId: Int, source: SelectionSource) {
         val normalized = normalizeDestinationId(itemId)
 
-        val home = fragmentManager.findFragmentByTag(TAG_HOME)
-        val dashboard = fragmentManager.findFragmentByTag(TAG_DASHBOARD)
-        val settings = fragmentManager.findFragmentByTag(TAG_SETTINGS)
-
+        // Show/hide fragments immediately to avoid transient states.
         val targetTag = when (normalized) {
             R.id.nav_home -> TAG_HOME
             R.id.nav_search -> TAG_DASHBOARD
@@ -181,20 +209,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         val target = fragmentManager.findFragmentByTag(targetTag) ?: return
+        val allTabs = listOfNotNull(
+            fragmentManager.findFragmentByTag(TAG_HOME),
+            fragmentManager.findFragmentByTag(TAG_DASHBOARD),
+            fragmentManager.findFragmentByTag(TAG_SETTINGS)
+        )
 
-        // Apply show/hide immediately to avoid transient states and to keep UI selection in sync.
         fragmentManager.beginTransaction().apply {
-            listOfNotNull(home, dashboard, settings).forEach { fragment ->
-                if (fragment == target) show(fragment) else hide(fragment)
+            allTabs.forEach { fragment ->
+                if (fragment === target) show(fragment) else hide(fragment)
             }
             commitNow()
         }
 
         selectedItemId = normalized
 
-        if (updateUiSelection) {
-            syncNavigationSelection(normalized)
-        }
+        // Sync selection states without triggering recursion.
+        syncNavigationSelection(normalized)
 
         // Update toolbar title based on shown fragment.
         val titleRes = when (targetTag) {
@@ -204,6 +235,11 @@ class MainActivity : AppCompatActivity() {
             else -> R.string.app_name
         }
         supportActionBar?.setTitle(titleRes)
+
+        // UX: close the drawer only for drawer-originated selections.
+        if (source == SelectionSource.USER_DRAWER && drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
     }
 
     /**
@@ -223,7 +259,7 @@ class MainActivity : AppCompatActivity() {
         val normalized = normalizeDestinationId(itemId)
 
         // Keep BottomNav and Drawer selection in sync.
-        // Use a guard to avoid triggering BottomNav listeners recursively.
+        // Use a guard to avoid triggering listeners recursively.
         isSyncingSelection = true
         try {
             // Bottom navigation: set selectedItemId to update UI (this may call the listener).
@@ -231,7 +267,13 @@ class MainActivity : AppCompatActivity() {
                 bottomNav.selectedItemId = normalized
             }
 
-            // Defensive: ensure check states are aligned even if selection is unchanged.
+            // Drawer: ensure exactly the one item is checked.
+            // Use checked item to get proper single-check behavior.
+            if (navigationView.checkedItem?.itemId != normalized) {
+                navigationView.setCheckedItem(normalized)
+            }
+
+            // Defensive: align check states even if selection is unchanged.
             bottomNav.menu.findItem(normalized)?.isChecked = true
             navigationView.menu.findItem(normalized)?.isChecked = true
         } finally {
