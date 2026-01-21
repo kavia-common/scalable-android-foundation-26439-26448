@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Ocean Professional (approx):
+      primary #2563EB, secondary #F59E0B, background #f9fafb, surface #ffffff, text #111827
+    -->
+    <style name="Theme.OceanProfessional" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/ocean_primary</item>
+        <item name="colorPrimaryVariant">@color/ocean_primary_variant</item>
+        <item name="colorOnPrimary">@color/ocean_on_primary</item>
+
+        <item name="colorSecondary">@color/ocean_secondary</item>
+        <item name="colorSecondaryVariant">@color/ocean_secondary_variant</item>
+        <item name="colorOnSecondary">@color/ocean_on_secondary</item>
+
+        <item name="android:colorBackground">@color/ocean_background</item>
+        <item name="colorSurface">@color/ocean_surface</item>
+        <item name="colorOnSurface">@color/ocean_on_surface</item>
+
+        <!-- Status bar: keep readable -->
+        <item name="android:statusBarColor" tools:targetApi="l">@color/ocean_primary</item>
+    </style>
+
+</resources>
