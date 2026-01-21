@@ -6,7 +6,6 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
@@ -52,7 +51,9 @@ class MainActivity : AppCompatActivity() {
         fragmentManager = supportFragmentManager
 
         // Restore selected tab across configuration changes (fragment instances are restored by FM).
-        selectedItemId = savedInstanceState?.getInt(KEY_SELECTED_ITEM_ID) ?: R.id.nav_home
+        selectedItemId = normalizeDestinationId(
+            savedInstanceState?.getInt(KEY_SELECTED_ITEM_ID) ?: R.id.nav_home
+        )
 
         // Classic drawer toggle animation for hamburger icon
         val toggle = ActionBarDrawerToggle(
@@ -66,9 +67,52 @@ class MainActivity : AppCompatActivity() {
         toggle.syncState()
 
         // Manual fragment setup: ensure all fragments exist (by stable tags), then show selection.
+        // IMPORTANT: set up listeners BEFORE calling showDestination(), because showDestination()
+        // synchronizes UI state (which touches bottomNav.selectedItemId).
         ensureFragmentsCreated()
+        setupNavigationListeners()
         showDestination(selectedItemId, updateUiSelection = true)
 
+        // Back press behavior:
+        // - If drawer open => close drawer.
+        // - If on non-home tab => return to home (no back stack entries for tabs).
+        // - If already on home => exit.
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                        drawerLayout.closeDrawer(GravityCompat.START)
+                        return
+                    }
+
+                    if (selectedItemId != R.id.nav_home) {
+                        showDestination(R.id.nav_home, updateUiSelection = true)
+                        return
+                    }
+
+                    // Home: exit activity.
+                    finish()
+                }
+            }
+        )
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_SELECTED_ITEM_ID, selectedItemId)
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        // With manual fragment navigation, "up" just opens the drawer (top-level destinations).
+        if (::drawerLayout.isInitialized) {
+            drawerLayout.openDrawer(GravityCompat.START)
+            return true
+        }
+        return super.onSupportNavigateUp()
+    }
+
+    private fun setupNavigationListeners() {
         // BottomNavigationView: no-op on reselection; no back stack usage for tab switches.
         bottomNav.setOnItemReselectedListener {
             // Do nothing by design.
@@ -95,45 +139,6 @@ class MainActivity : AppCompatActivity() {
             drawerLayout.closeDrawer(GravityCompat.START)
             true
         }
-
-        // Back press behavior:
-        // - If drawer open => close drawer.
-        // - If on non-home tab => return to home (no back stack entries for tabs).
-        // - If already on home => exit (finish activity).
-        onBackPressedDispatcher.addCallback(
-            this,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                        drawerLayout.closeDrawer(GravityCompat.START)
-                        return
-                    }
-
-                    if (selectedItemId != R.id.nav_home) {
-                        showDestination(R.id.nav_home, updateUiSelection = true)
-                        return
-                    }
-
-                    // Default tab: exit app (let Activity finish/back stack handle it).
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                }
-            }
-        )
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putInt(KEY_SELECTED_ITEM_ID, selectedItemId)
-    }
-
-    override fun onSupportNavigateUp(): Boolean {
-        // With manual fragment navigation, "up" just opens the drawer (top-level destinations).
-        if (::drawerLayout.isInitialized) {
-            drawerLayout.openDrawer(GravityCompat.START)
-            return true
-        }
-        return super.onSupportNavigateUp()
     }
 
     private fun ensureFragmentsCreated() {
@@ -157,7 +162,7 @@ class MainActivity : AppCompatActivity() {
 
             // Use commitNow so the initial state is applied before we sync UI selections/titles.
             // Not using back stack keeps tab switching "flat" and makes back behavior deterministic.
-            commitNowAllowingStateLoss()
+            commitNow()
         }
     }
 
@@ -177,12 +182,12 @@ class MainActivity : AppCompatActivity() {
 
         val target = fragmentManager.findFragmentByTag(targetTag) ?: return
 
+        // Apply show/hide immediately to avoid transient states and to keep UI selection in sync.
         fragmentManager.beginTransaction().apply {
-            // Hide others, show target (no back stack).
             listOfNotNull(home, dashboard, settings).forEach { fragment ->
                 if (fragment == target) show(fragment) else hide(fragment)
             }
-            commit()
+            commitNow()
         }
 
         selectedItemId = normalized
@@ -221,13 +226,13 @@ class MainActivity : AppCompatActivity() {
         // Use a guard to avoid triggering BottomNav listeners recursively.
         isSyncingSelection = true
         try {
-            // Bottom navigation: set checked state + selectedItemId to update UI.
+            // Bottom navigation: set selectedItemId to update UI (this may call the listener).
             if (bottomNav.selectedItemId != normalized) {
                 bottomNav.selectedItemId = normalized
             }
-            bottomNav.menu.findItem(normalized)?.isChecked = true
 
-            // Drawer: mark checked item (single-check group in menu_drawer.xml).
+            // Defensive: ensure check states are aligned even if selection is unchanged.
+            bottomNav.menu.findItem(normalized)?.isChecked = true
             navigationView.menu.findItem(normalized)?.isChecked = true
         } finally {
             isSyncingSelection = false
